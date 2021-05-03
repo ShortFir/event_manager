@@ -1,2 +1,2 @@
-# ruby_event_manager
+# event_manager
 Seventh Odin Project
