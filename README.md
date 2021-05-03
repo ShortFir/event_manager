@@ -1,2 +1,2 @@
 # event_manager
-Seventh Odin Project
+Seventh Odin Project. Event Manager.
