@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 require 'csv'
 require 'google/apis/civicinfo_v2'
@@ -8,6 +8,7 @@ def clean_zipcode(zipcode)
   zipcode.to_s.rjust(5, '0')[0..4]
 end
 
+# rubocop:disable Metrics/MethodLength
 def legislators_by_zipcode(zip)
   civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new
   civic_info.key = 'AIzaSyClRzDqDh5MsXwnCWi0kOiiBivP6JsSyBw'
@@ -16,11 +17,13 @@ def legislators_by_zipcode(zip)
     civic_info.representative_info_by_address(
       address: zip,
       levels: 'country',
-      roles: %w[legislatorUpperBody legislatorLowerBody]).officials
+      roles: %w[legislatorUpperBody legislatorLowerBody]
+    ).officials
   rescue StandardError
     'You can find your representatives by visiting www.commoncause.org/take-action/find-elected-officials'
   end
 end
+# rubocop:enable Metrics/MethodLength
 
 def open_csv
   CSV.open(
@@ -40,6 +43,7 @@ def save_thank_you_letter(id, form_letter)
   end
 end
 
+# rubocop:disable Metrics/MethodLength
 def create_form_letter
   contents = open_csv
 
@@ -48,13 +52,14 @@ def create_form_letter
 
   contents.each do |row|
     id = row[0]
-    # name = row[:first_name]
+    name = row[:first_name]
     zipcode = clean_zipcode(row[:zipcode])
     legislators = legislators_by_zipcode(zipcode)
     form_letter = erb_template.result(binding)
     save_thank_you_letter(id, form_letter)
   end
 end
+# rubocop:enable Metrics/MethodLength
 
 def clean_home_phone(phone)
   phone.gsub!(/[^0-9]/, '')
@@ -62,29 +67,46 @@ def clean_home_phone(phone)
   phone.length != 10 ? 'Bad Number' : phone
 end
 
-# rubocop:disable Metrics/AbcSize
-def peak_registration_hours
-  contents = open_csv
-  array = contents.each_with_object([]) do |row, a|
+def format_date_day(csv)
+  csv.each_with_object([]) do |row, a|
+    a.push(DateTime.strptime(row[:regdate].to_s, '%m/%d/%Y %k:%M').wday)
+  end
+end
+
+def format_date_hour(csv)
+  csv.each_with_object([]) do |row, a|
     a.push(DateTime.strptime(row[:regdate].to_s, '%m/%d/%Y %k:%M').hour)
   end
+end
+
+def peak_occurance(array)
   hash = array.each_with_object(Hash.new(0)) { |time, h| h[time] += 1 }
   maxvalue = (hash.max_by { |_k, v| v })[1]
   hash.delete_if { |_k, v| v < maxvalue }
   hash.keys
 end
-# rubocop:enable Metrics/AbcSize
+
+def peak_registration_hours
+  peak_occurance(format_date_hour(open_csv))
+end
+
+def most_popular_day
+  Date::DAYNAMES[peak_occurance(format_date_day(open_csv))[0]]
+end
 
 puts 'EventManager initialized.', "\n"
 
-# create_form_letter
+puts 'Form Letter(s) created.' if create_form_letter
+puts
 
-# home_phone = clean_home_phone(row[:homephone])
-# puts "Home Phone: #{home_phone}"
+puts 'Home Phones:'
+open_csv.each { |row| puts "#{row[:first_name].ljust(10)}: #{clean_home_phone(row[:homephone])}" }
+puts
 
-answer = peak_registration_hours
 print 'Peak Registration At:'
-answer.each { |time| print " #{time}00 Hours." }
-print "\n"
+peak_registration_hours.each { |time| print " #{time}00 Hours." }
+puts
+
+puts "Most Popular Day: #{most_popular_day}"
 
 puts "\n", 'EventManager done.'
