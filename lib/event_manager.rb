@@ -62,33 +62,29 @@ def clean_home_phone(phone)
   phone.length != 10 ? 'Bad Number' : phone
 end
 
+# rubocop:disable Metrics/AbcSize
 def peak_registration_hours
   contents = open_csv
-  array = []
-  contents.each do |row|
-    array.push(
-      DateTime.strptime(row[:regdate].to_s, '%m/%d/%Y %k:%M').hour
-    )
+  array = contents.each_with_object([]) do |row, a|
+    a.push(DateTime.strptime(row[:regdate].to_s, '%m/%d/%Y %k:%M').hour)
   end
-  array.reduce(Hash.new(0)) { |total, e| total[e] += 1; total }
-  # hash.sort
-  # array.sort!
-  # array[0]
+  hash = array.each_with_object(Hash.new(0)) { |time, h| h[time] += 1 }
+  maxvalue = (hash.max_by { |_k, v| v })[1]
+  hash.delete_if { |_k, v| v < maxvalue }
+  hash.keys
 end
+# rubocop:enable Metrics/AbcSize
 
 puts 'EventManager initialized.', "\n"
 
 # create_form_letter
 
 # home_phone = clean_home_phone(row[:homephone])
+# puts "Home Phone: #{home_phone}"
 
 answer = peak_registration_hours
-puts "Peak Registration Hours: #{answer}"
-
-# 11/25/08 19:21
-# newdate = DateTime.strptime('11/25/08 19:21', '%m/%d/%Y %k:%M')
-# puts newdate
-# puts newdate.strftime('%k')
-# puts newdate.hour
+print 'Peak Registration At:'
+answer.each { |time| print " #{time}00 Hours." }
+print "\n"
 
 puts "\n", 'EventManager done.'
